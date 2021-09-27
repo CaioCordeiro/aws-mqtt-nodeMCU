@@ -24,13 +24,13 @@
 
 // Update these with values suitable for your network.
 
-const char* ssid = "VIRUS 2.4 GHZ";
-const char* password = "jesusamor";
+const char* ssid = "WIFI NAME";
+const char* password = "WIFI PASSWORD";
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org");
 
-const char* AWS_endpoint = "a1kxxkozj5r1sa-ats.iot.us-east-2.amazonaws.com"; //MQTT broker ip
+const char* AWS_endpoint = "AWS MQTT THING BROKER"; //MQTT broker ip
 
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
