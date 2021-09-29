@@ -1,21 +1,3 @@
-/*Developed by M V Subrahmanyam - https://www.linkedin.com/in/veera-subrahmanyam-mediboina-b63997145/
-  Project: AWS | NodeMCU ESP32 Tutorials
-  Electronics Innovation - www.electronicsinnovation.com
-
-  GitHub - https://github.com/VeeruSubbuAmi
-  YouTube - http://bit.ly/Electronics_Innovation
-
-  Upload date: 07 October 2019
-
-  AWS Iot Core
-
-  This example needs https://github.com/esp8266/arduino-esp8266fs-plugin
-
-  It connects to AWS IoT server then:
-  - publishes "hello world" to the topic "outTopic" every two seconds
-  - subscribes to the topic "inTopic", printing out any messages
-*/
-
 #include "FS.h"
 #include <ESP8266WiFi.h>;
 #include <PubSubClient.h>;
@@ -24,21 +6,29 @@
 
 // Update these with values suitable for your network.
 
-const char* ssid = "WIFI NAME";
-const char* password = "WIFI PASSWORD";
+const char* ssid = "";
+const char* password = "";
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org");
 
-const char* AWS_endpoint = "AWS MQTT THING BROKER"; //MQTT broker ip
+const char* AWS_endpoint = ""; //MQTT broker ip
+int ledState = LOW;
 
+int ledPin = D2;
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
+  
+  if ((char)payload[0] == 'h') {
+    Serial.print((char)payload[0]);
+     ledState = HIGH;
+  } else {
+    Serial.print((char)payload[0]);
+    ledState = LOW;
   }
+
   Serial.println();
 
 }
@@ -47,6 +37,47 @@ PubSubClient client(AWS_endpoint, 8883, callback, espClient); //set MQTT port nu
 long lastMsg = 0;
 char msg[50];
 int value = 0;
+int buttonPin = 5;
+int powerPin = A0;
+
+int read_button()
+{
+  int buttonState = digitalRead(buttonPin);
+  // You can send any value at any time.
+  // Please don't send more that 10 values per second.
+  Serial.print("V0 Button State value is: ");
+  return (buttonState);
+}
+
+int read_power()
+{
+  int potencia = analogRead(powerPin);
+  // You can send any value at any time.
+  // Please don't send more that 10 values per second.
+  Serial.print("V2 Power  value is: ");
+  Serial.println(potencia);
+  return (potencia);
+}
+
+void send_p_data()
+{
+  int p = read_power();
+  //    Serial.print("Publish message: ");
+  Serial.println(p);
+  client.publish("powerTopic", String(p).c_str());
+  //    Serial.print("Heap: ");
+  Serial.println(ESP.getFreeHeap()); //Low heap can cause problems
+}
+
+void send_b_data()
+{
+  int b = read_button();
+  //    Serial.print("Publish message: ");
+  Serial.println(b);
+  client.publish("buttonTopic",  String(b).c_str());
+  //    Serial.print("Heap: ");
+  Serial.println(ESP.getFreeHeap()); //Low heap can cause problems
+}
 
 void setup_wifi() {
 
@@ -88,7 +119,7 @@ void reconnect() {
       // Once connected, publish an announcement...
       client.publish("outTopic", "hello world");
       // ... and resubscribe
-      client.subscribe("inTopic");
+      client.subscribe("ledTopic");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -105,12 +136,13 @@ void reconnect() {
   }
 }
 
+
+
 void setup() {
 
   Serial.begin(115200);
   Serial.setDebugOutput(true);
-  // initialize digital pin LED_BUILTIN as an output.
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(D2, OUTPUT);
   setup_wifi();
   delay(1000);
   if (!SPIFFS.begin()) {
@@ -178,15 +210,8 @@ void loop() {
   long now = millis();
   if (now - lastMsg > 2000) {
     lastMsg = now;
-    ++value;
-    snprintf (msg, 75, "{\"message\": \"hello world #%ld\"}", value);
-    Serial.print("Publish message: ");
-    Serial.println(msg);
-    client.publish("outTopic", msg);
-    Serial.print("Heap: "); Serial.println(ESP.getFreeHeap()); //Low heap can cause problems
+    send_p_data();
+    send_b_data();
   }
-  digitalWrite(LED_BUILTIN, HIGH); // turn the LED on (HIGH is the voltage level)
-  delay(100); // wait for a second
-  digitalWrite(LED_BUILTIN, LOW); // turn the LED off by making the voltage LOW
-  delay(100); // wait for a second
+  digitalWrite(D2, ledState);
 }
