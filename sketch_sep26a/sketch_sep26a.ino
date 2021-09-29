@@ -1,8 +1,9 @@
 #include "FS.h"
 #include <ESP8266WiFi.h>;
 #include <PubSubClient.h>;
-#include <NTPClient.h>
-#include <WiFiUdp.h>
+#include <NTPClient.h>;
+#include <WiFiUdp.h>;
+#include <ArduinoJson.h>;
 
 // Update these with values suitable for your network.
 
@@ -14,18 +15,19 @@ NTPClient timeClient(ntpUDP, "pool.ntp.org");
 
 const char* AWS_endpoint = ""; //MQTT broker ip
 int ledState = LOW;
-
+int powerState = 0;
+int buttonState = 0;
 int ledPin = D2;
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
-  
-  if ((char)payload[0] == 'h') {
-    Serial.print((char)payload[0]);
-     ledState = HIGH;
+
+  if ((char)payload[1] == 'h') {
+    Serial.print((char)payload[1]);
+    ledState = HIGH;
   } else {
-    Serial.print((char)payload[0]);
+    Serial.print((char)payload[1]);
     ledState = LOW;
   }
 
@@ -45,7 +47,7 @@ int read_button()
   int buttonState = digitalRead(buttonPin);
   // You can send any value at any time.
   // Please don't send more that 10 values per second.
-  Serial.print("V0 Button State value is: ");
+  //  Serial.print("V0 Button State value is: ");
   return (buttonState);
 }
 
@@ -54,8 +56,8 @@ int read_power()
   int potencia = analogRead(powerPin);
   // You can send any value at any time.
   // Please don't send more that 10 values per second.
-  Serial.print("V2 Power  value is: ");
-  Serial.println(potencia);
+  //  Serial.print("V2 Power  value is: ");
+  //  Serial.println(potencia);
   return (potencia);
 }
 
@@ -63,20 +65,32 @@ void send_p_data()
 {
   int p = read_power();
   //    Serial.print("Publish message: ");
-  Serial.println(p);
-  client.publish("powerTopic", String(p).c_str());
-  //    Serial.print("Heap: ");
-  Serial.println(ESP.getFreeHeap()); //Low heap can cause problems
+  if ( abs(p - powerState) > 30) {
+    Serial.println(p);
+    StaticJsonDocument<200> doc;
+    doc["sensor"] = "acelerometer";
+    doc["value"] = p;
+    client.publish("powerTopic", doc.as<String>().c_str());
+    //    Serial.print("Heap: ");
+    Serial.println(ESP.getFreeHeap()); //Low heap can cause problems
+    powerState = p;
+  }
 }
 
 void send_b_data()
 {
   int b = read_button();
   //    Serial.print("Publish message: ");
-  Serial.println(b);
-  client.publish("buttonTopic",  String(b).c_str());
-  //    Serial.print("Heap: ");
-  Serial.println(ESP.getFreeHeap()); //Low heap can cause problems
+  if ( b != buttonState) {
+    Serial.println(b);
+    StaticJsonDocument<200> doc;
+    doc["sensor"] = "button";
+    doc["value"] = b;
+    client.publish("buttonTopic",  doc.as<String>().c_str());
+    //    Serial.print("Heap: ");
+    Serial.println(ESP.getFreeHeap()); //Low heap can cause problems
+    buttonState = b;
+  }
 }
 
 void setup_wifi() {
@@ -208,7 +222,7 @@ void loop() {
   client.loop();
 
   long now = millis();
-  if (now - lastMsg > 2000) {
+  if (now - lastMsg > 1000) {
     lastMsg = now;
     send_p_data();
     send_b_data();
