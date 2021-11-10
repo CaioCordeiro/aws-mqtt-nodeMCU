@@ -16,6 +16,7 @@ NTPClient timeClient(ntpUDP, "pool.ntp.org");
 const char* AWS_endpoint = ""; //MQTT broker ip
 int ledState = LOW;
 int powerState = 0;
+int tempState = 0;
 int buttonState = 0;
 int ledPin = D2;
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -41,6 +42,7 @@ char msg[50];
 int value = 0;
 int buttonPin = 5;
 int powerPin = A0;
+int tempPin = D3;
 
 int read_button()
 {
@@ -59,6 +61,33 @@ int read_power()
   //  Serial.print("V2 Power  value is: ");
   //  Serial.println(potencia);
   return (potencia);
+}
+
+int read_temp()
+{
+  int temp = analogRead(tempPin);
+  // You can send any value at any time.
+  // Please don't send more that 10 values per second.
+  //  Serial.print("V2 Power  value is: ");
+  //  Serial.println(potencia);
+  return (temp);
+}
+
+
+void send_t_data()
+{
+  int t = read_temp();
+  //    Serial.print("Publish message: ");
+  if ( abs(t - tempState) > 10) {
+    Serial.println(t);
+    StaticJsonDocument<200> doc;
+    doc["sensor"] = "temperature";
+    doc["value"] = t;
+    client.publish("tempTopic", doc.as<String>().c_str());
+    //    Serial.print("Heap: ");
+    Serial.println(ESP.getFreeHeap()); //Low heap can cause problems
+    tempState = t;
+  }
 }
 
 void send_p_data()
@@ -108,7 +137,7 @@ void setup_wifi() {
     delay(500);
     Serial.print(".");
   }
-
+  WiFi.setSleepMode(WIFI_NONE_SLEEP);
   Serial.println("");
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
@@ -226,6 +255,7 @@ void loop() {
     lastMsg = now;
     send_p_data();
     send_b_data();
+    send_t_data();
   }
   digitalWrite(D2, ledState);
 }
